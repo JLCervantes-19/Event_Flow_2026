@@ -25,6 +25,7 @@ const connectDB = async () => {
       // Connection pooling for serverless
       maxPoolSize: 5, // Reducido de 10 a 5 para serverless
       minPoolSize: 1,
+      bufferCommands: false, // Disable buffering to fail fast
     });
 
     cachedConnection = conn;
