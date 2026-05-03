@@ -20,10 +20,11 @@ const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI, {
       // Opciones recomendadas para Atlas y evitar deprecation warnings
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 3000, // Reducido de 5000 a 3000
+      socketTimeoutMS: 8000, // Reducido de 45000 a 8000 para Vercel
       // Connection pooling for serverless
-      maxPoolSize: 10,
+      maxPoolSize: 5, // Reducido de 10 a 5 para serverless
+      minPoolSize: 1,
     });
 
     cachedConnection = conn;
