@@ -45,8 +45,10 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Servir archivos estáticos del frontend
-app.use(express.static(path.join(__dirname, 'public')));
+// Servir archivos estáticos del frontend (solo en local)
+if (!process.env.VERCEL) {
+  app.use(express.static(path.join(__dirname, 'public')));
+}
 
 // ── Rutas API ─────────────────────────────────────────────────
 app.use('/api/events', eventsRouter);
@@ -67,10 +69,12 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
-// Fallback SPA → index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// Fallback SPA → index.html (solo en local)
+if (!process.env.VERCEL) {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  });
+}
 
 // ── Manejo global de errores ──────────────────────────────────
 app.use((err, req, res, next) => {
