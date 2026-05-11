@@ -6,11 +6,18 @@
 import Event from '../models/Event.js';
 import Reservation from '../models/Reservation.js';
 
-// GET /api/events — Listar todos los eventos activos
+// GET /api/events — Listar eventos activos (o concluidos con ?past=true)
 export const getEvents = async (req, res) => {
   try {
-    const { categoria, q, page = 1, limit = 12 } = req.query;
+    const { categoria, q, page = 1, limit = 12, past } = req.query;
+    const now = new Date();
     const filter = { activo: true };
+
+    if (past === 'true') {
+      filter.fecha = { $lt: now };
+    } else {
+      filter.fecha = { $gte: now };
+    }
 
     if (categoria) filter.categoria = categoria;
     if (q) filter.titulo = { $regex: q, $options: 'i' };
@@ -19,7 +26,7 @@ export const getEvents = async (req, res) => {
     const [events, total] = await Promise.all([
       Event.find(filter)
         .populate('organizadorId', 'nombre correo rol')
-        .sort({ fecha: 1 })
+        .sort(past === 'true' ? { fecha: -1 } : { fecha: 1 })
         .skip(skip)
         .limit(parseInt(limit)),
       Event.countDocuments(filter),

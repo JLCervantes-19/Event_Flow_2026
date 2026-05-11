@@ -28,6 +28,7 @@ function switchView(view) {
 
   if (view === 'explore') loadEvents();
   if (view === 'dashboard') loadDashboard();
+  if (view === 'concluidos') loadConcludedEvents();
   if (view === 'admin') {
     switchAdminTab('eventos');
     loadAdminEvents();
@@ -1363,6 +1364,216 @@ window.submitUserForm = submitUserForm;
 window.editUser = editUser;
 window.confirmDeleteUser = confirmDeleteUser;
 window.toggleMobileMenu = toggleMobileMenu;
+
+// ════════════════════════════════════════════════════════════════
+//  EVENTOS CONCLUIDOS
+// ════════════════════════════════════════════════════════════════
+const EMOJIS_CAT = { Música:'🎵', Tecnología:'💻', Arte:'🎨', Deportes:'⚽', Educación:'📚', Negocios:'💼', Otro:'🎪' };
+
+let concludedEvents = [];
+
+async function loadConcludedEvents() {
+  const grid = document.getElementById('concluded-grid');
+  const empty = document.getElementById('concluded-empty');
+  grid.innerHTML = `
+    <div class="skeleton h-64 rounded-2xl"></div>
+    <div class="skeleton h-64 rounded-2xl"></div>
+    <div class="skeleton h-64 rounded-2xl"></div>`;
+  empty.classList.add('hidden');
+
+  try {
+    const res = await fetch(`${API}/events?past=true&limit=100`);
+    const json = await res.json();
+    concludedEvents = json.data || [];
+    renderConcluded(concludedEvents);
+  } catch {
+    grid.innerHTML = `<p class="col-span-3 text-center py-10" style="color:var(--text-muted);">Error al cargar eventos concluidos.</p>`;
+  }
+}
+
+function filterConcluded() {
+  const q = document.getElementById('concluded-search').value.toLowerCase();
+  const cat = document.getElementById('concluded-categoria').value;
+  const filtered = concludedEvents.filter(e =>
+    (!q || e.titulo.toLowerCase().includes(q)) &&
+    (!cat || e.categoria === cat)
+  );
+  renderConcluded(filtered);
+}
+
+function renderConcluded(events) {
+  const grid = document.getElementById('concluded-grid');
+  const empty = document.getElementById('concluded-empty');
+
+  if (!events.length) {
+    grid.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  grid.innerHTML = events.map(e => {
+    const id = e.id || e._id;
+    const titulo = e.titulo.replace(/'/g, "\\'");
+    const emoji = EMOJIS_CAT[e.categoria] || '🎪';
+    const fechaStr = fmt.date(e.fecha);
+    return `
+    <div class="concluded-card fade-up">
+      <div class="flex items-center justify-center text-5xl" style="height:120px;background:linear-gradient(135deg,#fef3c7,#d1fae5);">
+        ${emoji}
+      </div>
+      <div class="p-5 flex flex-col flex-1 gap-3">
+        <div>
+          <span class="badge cat-${e.categoria}" style="margin-bottom:.5rem;">${e.categoria}</span>
+          <h3 class="font-display font-bold text-base leading-snug mt-2">${e.titulo}</h3>
+          <p class="text-xs mt-1" style="color:var(--text-muted);">📅 ${fechaStr} · 📍 ${e.lugar}</p>
+        </div>
+        ${e.descripcion ? `<p class="text-sm" style="color:var(--text-muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${e.descripcion}</p>` : ''}
+        <div class="flex gap-2 mt-auto pt-3" style="border-top:1px solid var(--border);">
+          <button class="btn btn-ghost flex-1" style="font-size:.78rem;padding:.45rem .5rem;"
+                  onclick="openViewReviewsModal('${id}', '${titulo}')">
+            Ver Reseñas
+          </button>
+          <button class="btn btn-primary flex-1" style="font-size:.78rem;padding:.45rem .5rem;"
+                  onclick="openAddReviewModal('${id}', '${titulo}')">
+            Agregar Reseña
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  MODAL: VER RESEÑAS
+// ════════════════════════════════════════════════════════════════
+async function openViewReviewsModal(eventoId, titulo) {
+  document.getElementById('view-reviews-title').textContent = titulo;
+  document.getElementById('modal-view-reviews').classList.add('open');
+  await loadReviews(eventoId);
+}
+
+function closeViewReviewsModal(e) {
+  if (e && e.target !== document.getElementById('modal-view-reviews')) return;
+  document.getElementById('modal-view-reviews').classList.remove('open');
+}
+
+async function loadReviews(eventoId) {
+  const list = document.getElementById('view-reviews-list');
+  const avgEl = document.getElementById('view-reviews-avg');
+  list.innerHTML = '<div class="skeleton h-14 rounded-xl"></div><div class="skeleton h-14 rounded-xl mt-2"></div>';
+
+  try {
+    const res = await fetch(`${API}/reviews/${eventoId}`);
+    const json = await res.json();
+    const reviews = json.data || [];
+    const promedio = json.promedio || 0;
+
+    avgEl.innerHTML = promedio > 0
+      ? `<span style="color:#f59e0b;font-size:1.1rem;">${'★'.repeat(Math.round(promedio))}${'☆'.repeat(5 - Math.round(promedio))}</span>
+         <span class="font-mono text-sm font-bold">${promedio.toFixed(1)}</span>
+         <span class="text-xs" style="color:var(--text-muted);">(${json.total} reseña${json.total !== 1 ? 's' : ''})</span>`
+      : `<span class="text-xs" style="color:var(--text-muted);">Sin reseñas aún</span>`;
+
+    if (!reviews.length) {
+      list.innerHTML = `<p class="text-sm py-6 text-center" style="color:var(--text-muted);">Nadie ha dejado una reseña todavía.</p>`;
+      return;
+    }
+
+    list.innerHTML = reviews.map(r => `
+      <div class="review-card">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="font-display font-bold text-sm">${r.autorNombre}</p>
+            <span style="color:#f59e0b;font-size:.9rem;">${'★'.repeat(r.calificacion)}${'☆'.repeat(5 - r.calificacion)}</span>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <p class="font-mono text-xs" style="color:var(--text-muted);">${fmt.date(r.createdAt)}</p>
+            <button onclick="deleteReview('${r.id || r._id}', '${eventoId}')"
+                    title="Eliminar reseña"
+                    style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1rem;padding:0;width:auto;line-height:1;">✕</button>
+          </div>
+        </div>
+        <p class="text-sm mt-2" style="color:var(--text-main);">${r.comentario}</p>
+      </div>`).join('');
+  } catch {
+    list.innerHTML = `<p class="text-sm py-4 text-center" style="color:var(--text-muted);">Error al cargar reseñas.</p>`;
+  }
+}
+
+async function deleteReview(reviewId, eventoId) {
+  try {
+    const res = await fetch(`${API}/reviews/${reviewId}`, { method: 'DELETE' });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.message);
+    showToast('Reseña eliminada');
+    await loadReviews(eventoId);
+  } catch (err) {
+    showToast(err.message || 'Error al eliminar', 'error');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  MODAL: AGREGAR RESEÑA
+// ════════════════════════════════════════════════════════════════
+function openAddReviewModal(eventoId, titulo) {
+  document.getElementById('review-eventoId').value = eventoId;
+  document.getElementById('add-review-title').textContent = titulo;
+  document.getElementById('review-form').reset();
+  document.getElementById('modal-add-review').classList.add('open');
+}
+
+function closeAddReviewModal(e) {
+  if (e && e.target !== document.getElementById('modal-add-review')) return;
+  document.getElementById('modal-add-review').classList.remove('open');
+}
+
+async function submitReview(e) {
+  e.preventDefault();
+  const btn = document.getElementById('review-submit-btn');
+  const eventoId = document.getElementById('review-eventoId').value;
+  const calificacion = document.querySelector('input[name="calificacion"]:checked')?.value;
+
+  if (!calificacion) { showToast('Selecciona una calificación de 1 a 5 estrellas', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Publicando...';
+
+  try {
+    const body = {
+      eventoId,
+      autorNombre: document.getElementById('review-autorNombre').value.trim(),
+      calificacion: parseInt(calificacion),
+      comentario: document.getElementById('review-comentario').value.trim(),
+    };
+
+    const res = await fetch(`${API}/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json();
+
+    if (!json.ok) throw new Error(json.errors?.join(', ') || json.message);
+
+    showToast('Reseña publicada exitosamente ✓');
+    closeAddReviewModal();
+  } catch (err) {
+    showToast(err.message || 'Error al publicar la reseña', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Publicar Reseña';
+  }
+}
+
+window.loadConcludedEvents    = loadConcludedEvents;
+window.filterConcluded        = filterConcluded;
+window.openViewReviewsModal   = openViewReviewsModal;
+window.closeViewReviewsModal  = closeViewReviewsModal;
+window.openAddReviewModal     = openAddReviewModal;
+window.closeAddReviewModal    = closeAddReviewModal;
+window.submitReview           = submitReview;
+window.deleteReview           = deleteReview;
 
 // ════════════════════════════════════════════════════════════════
 //  INIT — Carga inicial

@@ -16,11 +16,13 @@ import eventsRouter from './routes/events.js';
 import reservationsRouter from './routes/reservations.js';
 import dashboardRouter from './routes/dashboard.js';
 import usersRouter from './routes/users.js';
+import reviewsRouter from './routes/reviews.js';
 
 // Import models to register them with Mongoose
 import './models/User.js';
 import './models/Event.js';
 import './models/Reservation.js';
+import './models/Review.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -53,6 +55,7 @@ app.use('/api/events', eventsRouter);
 app.use('/api/reservations', reservationsRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/reviews', reviewsRouter);
 
 // Health check with database status
 app.get('/api/health', async (req, res) => {
