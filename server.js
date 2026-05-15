@@ -17,6 +17,7 @@ import reservationsRouter from './routes/reservations.js';
 import dashboardRouter from './routes/dashboard.js';
 import usersRouter from './routes/users.js';
 import reviewsRouter from './routes/reviews.js';
+import authRouter from './routes/auth.js';
 
 // Import models to register them with Mongoose
 import './models/User.js';
@@ -30,15 +31,8 @@ const PORT = process.env.PORT || 3000;
 
 // ── Middleware ────────────────────────────────────────────────
 // Dynamic CORS configuration based on environment
-const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? [
-      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
-      process.env.CORS_ORIGIN, // Custom domain from env var
-    ].filter(Boolean)
-  : ['http://localhost:3000', 'http://127.0.0.1:5500'];
-
 app.use(cors({
-  origin: allowedOrigins,
+  origin: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -51,6 +45,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Rutas API ─────────────────────────────────────────────────
+app.use('/api/auth', authRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/reservations', reservationsRouter);
 app.use('/api/dashboard', dashboardRouter);

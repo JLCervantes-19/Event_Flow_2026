@@ -65,7 +65,9 @@ export const createUser = async (req, res) => {
 // PUT /api/users/:id — Actualizar usuario
 export const updateUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, {
+    const updates = { ...req.body };
+    if (!updates.password) delete updates.password;
+    const user = await User.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true,
     });

@@ -27,6 +27,13 @@ const userSchema = new mongoose.Schema(
       ],
     },
 
+    password: {
+      type: String,
+      required: [true, 'La contraseña es obligatoria'],
+      minlength: [4, 'La contraseña debe tener al menos 4 caracteres'],
+      select: false,
+    },
+
     rol: {
       type: String,
       enum: {

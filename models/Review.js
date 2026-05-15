@@ -7,6 +7,11 @@ const reviewSchema = new mongoose.Schema(
       ref: 'Event',
       required: [true, 'El evento es obligatorio'],
     },
+    usuarioId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     autorNombre: {
       type: String,
       required: [true, 'El nombre del autor es obligatorio'],
