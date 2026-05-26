@@ -1229,30 +1229,34 @@
     <form id="reservation-form" onsubmit="submitReservationForm(event)" class="flex flex-col gap-4">
       <input type="hidden" id="reservation-id" name="id" />
       
-      <div class="p-3 rounded-lg" style="background:rgba(59,130,246,.05);border:1px solid rgba(59,130,246,.2);">
+      <div id="reservation-tip-box" class="p-3 rounded-lg" style="display:none;background:rgba(59,130,246,.05);border:1px solid rgba(59,130,246,.2);">
         <p class="text-xs" style="color:var(--text-muted);">
           💡 <strong>Tip:</strong> Necesitas el ID del usuario y del evento. Puedes obtenerlos desde la sección Admin.
         </p>
       </div>
-      
+
+      <input type="hidden" id="reservation-usuarioId" name="usuarioId" />
+      <input type="hidden" id="reservation-eventoId" name="eventoId" />
+      <input type="hidden" id="reservation-estado" name="estado" value="confirmada" />
+
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
+        <div id="reservation-usuarioId-field" style="display:none;">
           <label>Usuario ID</label>
-          <input type="text" id="reservation-usuarioId" name="usuarioId" placeholder="ID del usuario que reserva" required />
+          <input type="text" id="reservation-usuarioId-visible" placeholder="ID del usuario que reserva" />
           <p class="text-xs mt-1" style="color:var(--text-muted);">Obtén el ID desde Admin → Usuarios</p>
         </div>
-        <div>
+        <div id="reservation-eventoId-field" style="display:none;">
           <label>Evento ID</label>
-          <input type="text" id="reservation-eventoId" name="eventoId" placeholder="ID del evento a reservar" required />
+          <input type="text" id="reservation-eventoId-visible" placeholder="ID del evento a reservar" />
           <p class="text-xs mt-1" style="color:var(--text-muted);">Obtén el ID desde Admin → Eventos</p>
         </div>
         <div>
           <label>Cantidad de Entradas</label>
           <input type="number" id="reservation-cantidad" name="cantidad" placeholder="1" min="1" value="1" required />
         </div>
-        <div>
+        <div id="reservation-estado-field" style="display:none;">
           <label>Estado</label>
-          <select id="reservation-estado" name="estado" required>
+          <select id="reservation-estado-visible">
             <option value="pendiente">Pendiente</option>
             <option value="confirmada" selected>Confirmada</option>
             <option value="cancelada">Cancelada</option>
@@ -1408,6 +1412,6 @@
 </div>
 
 <!-- app.js -->
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=3"></script>
 </body>
 </html>
