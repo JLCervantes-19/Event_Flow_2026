@@ -7,13 +7,109 @@
 const API = '/api';
 
 // ── Estado global ─────────────────────────────────────────────
+let currentUser = null;
 let allEvents = [];
 let charts = {};
+
+// ════════════════════════════════════════════════════════════════
+//  AUTENTICACIÓN
+// ════════════════════════════════════════════════════════════════
+function showLogin() {
+  document.getElementById('login-overlay').classList.remove('hidden');
+}
+
+function showApp() {
+  document.getElementById('login-overlay').classList.add('hidden');
+  updateNavForRole(currentUser.rol);
+  switchView('explore');
+}
+
+function updateNavForRole(rol) {
+  const isAdmin = rol === 'admin';
+  document.querySelectorAll('.nav-admin-only').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+  document.querySelectorAll('.mobile-nav-admin-only').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+
+  const initiales = currentUser.nombre.split(' ').slice(0, 2).map(n => n[0].toUpperCase()).join('');
+  const rolLabel = { admin: 'Administrador', organizador: 'Organizador', cliente: 'Usuario' }[rol] || rol;
+
+  const avatar = document.getElementById('nav-user-avatar');
+  const nameEl = document.getElementById('nav-user-name');
+  const roleEl = document.getElementById('nav-user-role');
+  const mobileInfo = document.getElementById('mobile-user-info');
+
+  if (avatar)  avatar.textContent = initiales;
+  if (nameEl)  nameEl.textContent = currentUser.nombre;
+  if (roleEl)  roleEl.textContent = rolLabel;
+  if (mobileInfo) mobileInfo.textContent = `${currentUser.nombre} · ${rolLabel}`;
+
+  if (isAdmin) {
+    if (avatar) avatar.style.cssText = 'background:rgba(139,92,246,.15);color:#7c3aed;border:1px solid rgba(139,92,246,.3);width:2rem;height:2rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:"JetBrains Mono",monospace;font-size:.75rem;font-weight:700;';
+  }
+}
+
+async function submitLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+  const correo = document.getElementById('login-correo').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  btn.disabled = true;
+  btn.textContent = 'Verificando...';
+  errEl.classList.add('hidden');
+
+  try {
+    const res = await fetch(`${API}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ correo, password }),
+    });
+    const json = await res.json();
+
+    if (!json.ok) throw new Error(json.message || 'Credenciales incorrectas');
+
+    currentUser = json.data;
+    localStorage.setItem('ef_user', JSON.stringify(currentUser));
+    showApp();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Ingresar';
+  }
+}
+
+function logout() {
+  currentUser = null;
+  localStorage.removeItem('ef_user');
+  showLogin();
+  document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+  document.getElementById('view-explore').classList.remove('hidden');
+}
+
+function fillDemo(correo, password) {
+  document.getElementById('login-correo').value = correo;
+  document.getElementById('login-password').value = password;
+}
+
+window.submitLogin    = submitLogin;
+window.logout         = logout;
+window.fillDemo       = fillDemo;
 
 // ════════════════════════════════════════════════════════════════
 //  NAVEGACIÓN SPA
 // ════════════════════════════════════════════════════════════════
 function switchView(view) {
+  if ((view === 'dashboard' || view === 'admin') && currentUser?.rol !== 'admin') {
+    showToast('Solo los administradores pueden acceder a esta sección', 'error');
+    return;
+  }
+
   document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.mobile-nav-link').forEach(el => el.classList.remove('active'));
@@ -979,48 +1075,67 @@ function openReservationModal(reservationId = null, eventoId = null, eventoTitul
   const modal = document.getElementById('modal-reservation');
   const form = document.getElementById('reservation-form');
   form.reset();
-  
+
+  const isAdmin = currentUser?.rol === 'admin';
+
+  // Campos hidden (siempre presentes, los usa el form)
+  const hiddenUsuario = document.getElementById('reservation-usuarioId');
+  const hiddenEvento  = document.getElementById('reservation-eventoId');
+  const hiddenEstado  = document.getElementById('reservation-estado');
+
+  // Campos visibles (solo admin)
+  const visUsuario    = document.getElementById('reservation-usuarioId-visible');
+  const visEvento     = document.getElementById('reservation-eventoId-visible');
+  const visEstado     = document.getElementById('reservation-estado-visible');
+  const userIdField   = document.getElementById('reservation-usuarioId-field');
+  const eventoIdField = document.getElementById('reservation-eventoId-field');
+  const estadoField   = document.getElementById('reservation-estado-field');
+  const tipBox        = document.getElementById('reservation-tip-box');
+
+  if (isAdmin) {
+    // Mostrar campos visibles y sincronizarlos con los hidden al cambiar
+    if (userIdField)   userIdField.style.display  = '';
+    if (eventoIdField) eventoIdField.style.display = '';
+    if (estadoField)   estadoField.style.display   = '';
+    if (tipBox)        tipBox.style.display        = '';
+    if (visUsuario) visUsuario.oninput = () => { hiddenUsuario.value = visUsuario.value; };
+    if (visEvento)  visEvento.oninput  = () => { hiddenEvento.value  = visEvento.value;  };
+    if (visEstado)  visEstado.onchange = () => { hiddenEstado.value  = visEstado.value;  };
+  } else {
+    // Usuario normal: todo oculto, pre-llenar hidden silenciosamente
+    hiddenUsuario.value = currentUser.id;
+    hiddenEstado.value  = 'confirmada';
+  }
+
   if (reservationId) {
-    // Modo edición
     document.getElementById('reservation-modal-subtitle').textContent = '// EDITAR RESERVA';
     document.getElementById('reservation-modal-title').textContent = 'Editar Reserva';
     document.getElementById('reservation-submit-btn').textContent = 'Guardar Cambios';
-    
-    // Cargar datos de la reserva
+
     const reservation = adminReservationsData.find(r => (r.id || r._id) === reservationId);
     if (reservation) {
+      const uid = reservation.usuarioId?._id || reservation.usuarioId?.id || reservation.usuarioId;
+      const eid = reservation.eventoId?._id  || reservation.eventoId?.id  || reservation.eventoId;
       document.getElementById('reservation-id').value = reservationId;
-      document.getElementById('reservation-usuarioId').value = reservation.usuarioId?._id || reservation.usuarioId?.id || reservation.usuarioId;
-      document.getElementById('reservation-eventoId').value = reservation.eventoId?._id || reservation.eventoId?.id || reservation.eventoId;
+      hiddenUsuario.value = uid;
+      hiddenEvento.value  = eid;
+      hiddenEstado.value  = reservation.estado;
+      if (visUsuario) visUsuario.value = uid;
+      if (visEvento)  visEvento.value  = eid;
+      if (visEstado)  visEstado.value  = reservation.estado;
       document.getElementById('reservation-cantidad').value = reservation.cantidad;
-      document.getElementById('reservation-estado').value = reservation.estado;
       document.getElementById('reservation-notas').value = reservation.notas || '';
     }
   } else {
-    // Modo creación
     document.getElementById('reservation-modal-subtitle').textContent = '// NUEVA RESERVA';
     document.getElementById('reservation-modal-title').textContent = eventoTitulo ? `Reservar: ${eventoTitulo}` : 'Crear Reserva';
     document.getElementById('reservation-submit-btn').textContent = 'Crear Reserva';
-    
-    // Si viene de un evento específico, pre-llenar el campo
+
     if (eventoId) {
-      document.getElementById('reservation-eventoId').value = eventoId;
-      document.getElementById('reservation-eventoId').readOnly = true;
-      // Agregar un mensaje informativo
-      const eventoField = document.getElementById('reservation-eventoId').parentElement;
-      if (!eventoField.querySelector('.info-message')) {
-        const info = document.createElement('p');
-        info.className = 'info-message text-xs mt-1';
-        info.style.color = 'var(--text-muted)';
-        info.textContent = `Evento: ${eventoTitulo}`;
-        eventoField.appendChild(info);
-      }
+      hiddenEvento.value = eventoId;
+      if (visEvento) { visEvento.value = eventoId; visEvento.readOnly = true; }
     } else {
-      document.getElementById('reservation-eventoId').readOnly = false;
-      // Remover mensaje si existe
-      const eventoField = document.getElementById('reservation-eventoId').parentElement;
-      const info = eventoField.querySelector('.info-message');
-      if (info) info.remove();
+      if (visEvento) visEvento.readOnly = false;
     }
   }
   
@@ -1127,9 +1242,12 @@ async function loadAdminUsers() {
 
 async function loadOrganizadores() {
   try {
-    const res = await fetch(`${API}/users?rol=organizador&limit=100`);
-    const json = await res.json();
-    allOrganizadores = json.data || json;
+    const [resOrg, resAdmin] = await Promise.all([
+      fetch(`${API}/users?rol=organizador&limit=100`),
+      fetch(`${API}/users?rol=admin&limit=100`),
+    ]);
+    const [jOrg, jAdmin] = await Promise.all([resOrg.json(), resAdmin.json()]);
+    allOrganizadores = [...(jOrg.data || []), ...(jAdmin.data || [])];
     
     // Actualizar el select de organizadores en el modal de eventos
     const select = document.getElementById('event-organizadorId');
@@ -1288,9 +1406,10 @@ async function submitUserForm(e) {
   const form = e.target;
   const formData = new FormData(form);
   const data = Object.fromEntries(formData.entries());
-  
+
   delete data.id;
   if (!data.avatar) delete data.avatar;
+  if (!data.password) delete data.password;
   
   try {
     const url = currentUserId ? `${API}/users/${currentUserId}` : `${API}/users`;
@@ -1489,9 +1608,9 @@ async function loadReviews(eventoId) {
           </div>
           <div class="flex items-center gap-2 flex-shrink-0">
             <p class="font-mono text-xs" style="color:var(--text-muted);">${fmt.date(r.createdAt)}</p>
-            <button onclick="deleteReview('${r.id || r._id}', '${eventoId}')"
+            ${currentUser?.rol === 'admin' ? `<button onclick="deleteReview('${r.id || r._id}', '${eventoId}')"
                     title="Eliminar reseña"
-                    style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1rem;padding:0;width:auto;line-height:1;">✕</button>
+                    style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1rem;padding:0;width:auto;line-height:1;">✕</button>` : ''}
           </div>
         </div>
         <p class="text-sm mt-2" style="color:var(--text-main);">${r.comentario}</p>
@@ -1520,6 +1639,9 @@ function openAddReviewModal(eventoId, titulo) {
   document.getElementById('review-eventoId').value = eventoId;
   document.getElementById('add-review-title').textContent = titulo;
   document.getElementById('review-form').reset();
+  if (currentUser) {
+    document.getElementById('review-autorNombre').value = currentUser.nombre;
+  }
   document.getElementById('modal-add-review').classList.add('open');
 }
 
@@ -1542,6 +1664,7 @@ async function submitReview(e) {
   try {
     const body = {
       eventoId,
+      usuarioId: currentUser?.id || undefined,
       autorNombre: document.getElementById('review-autorNombre').value.trim(),
       calificacion: parseInt(calificacion),
       comentario: document.getElementById('review-comentario').value.trim(),
@@ -1579,7 +1702,6 @@ window.deleteReview           = deleteReview;
 //  INIT — Carga inicial
 // ════════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  // Año actual en el selector
   const ys = document.getElementById('year-select');
   const now = new Date().getFullYear();
   if (ys) {
@@ -1588,5 +1710,18 @@ document.addEventListener('DOMContentLoaded', () => {
       <option value="${now-1}">${now-1}</option>
       <option value="${now+1}">${now+1}</option>`;
   }
-  loadEvents();
+
+  // Verificar sesión existente en localStorage
+  try {
+    const saved = localStorage.getItem('ef_user');
+    if (saved) {
+      currentUser = JSON.parse(saved);
+      showApp();
+    } else {
+      showLogin();
+    }
+  } catch {
+    localStorage.removeItem('ef_user');
+    showLogin();
+  }
 });

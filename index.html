@@ -593,9 +593,96 @@
     .btn-cancel:hover {
       background: rgba(251,146,60,.2);
     }
+
+    /* ── Login Overlay ─────────────────────────────────────── */
+    #login-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 60%, #eff6ff 100%);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem;
+    }
+    #login-overlay.hidden { display: none; }
+    .login-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 2.5rem;
+      width: 100%; max-width: 420px;
+      box-shadow: 0 20px 60px rgba(15,23,42,.12);
+      animation: fadeUp .4s ease;
+    }
+    .login-demo-btn {
+      display: flex; align-items: center; gap: .6rem;
+      padding: .6rem .9rem; border-radius: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .72rem; cursor: pointer;
+      transition: filter .15s; border: none; width: 100%;
+      text-align: left;
+    }
+    .login-demo-btn:hover { filter: brightness(.96); }
   </style>
 </head>
 <body>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!--  LOGIN OVERLAY                                           -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="login-overlay">
+  <div class="login-card">
+
+    <div class="flex items-center gap-3 mb-8">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center font-display font-black text-base"
+           style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;">EF</div>
+      <div>
+        <p class="font-display font-black text-xl tracking-tight" style="color:var(--text-main);">
+          Event<span class="grad-primary">Flow</span>
+        </p>
+        <p class="font-mono text-xs" style="color:var(--text-muted);">// PLATAFORMA DE EVENTOS</p>
+      </div>
+    </div>
+
+    <h2 class="font-display font-bold text-xl mb-1" style="color:var(--text-main);">Iniciar Sesión</h2>
+    <p class="text-sm mb-6" style="color:var(--text-muted);">Accede con tu cuenta para continuar</p>
+
+    <form id="login-form" onsubmit="submitLogin(event)" class="flex flex-col gap-4">
+      <div>
+        <label for="login-correo">CORREO ELECTRÓNICO</label>
+        <input type="email" id="login-correo" placeholder="correo@ejemplo.com" required />
+      </div>
+      <div>
+        <label for="login-password">CONTRASEÑA</label>
+        <input type="password" id="login-password" placeholder="••••••••" required />
+      </div>
+      <div id="login-error" class="hidden text-sm px-3 py-2 rounded-lg"
+           style="background:rgba(239,68,68,.08);color:#ef4444;border:1px solid rgba(239,68,68,.2);"></div>
+      <button type="submit" id="login-btn" class="btn btn-primary" style="width:100%;margin-top:.25rem;">
+        Ingresar
+      </button>
+    </form>
+
+    <div class="mt-6 pt-5" style="border-top:1px solid var(--border);">
+      <p class="font-mono text-xs mb-3 text-center" style="color:var(--text-muted);letter-spacing:.06em;">
+        // CUENTAS DE DEMOSTRACIÓN
+      </p>
+      <div class="flex flex-col gap-2">
+        <button class="login-demo-btn" onclick="fillDemo('admin@eventflow.com','admin123')"
+                style="background:rgba(139,92,246,.07);border:1px solid rgba(139,92,246,.2);">
+          <span style="font-size:1rem;">⚙️</span>
+          <span style="color:#7c3aed;font-weight:700;min-width:60px;">ADMIN</span>
+          <span style="color:var(--text-muted);">admin@eventflow.com · admin123</span>
+        </button>
+        <button class="login-demo-btn" onclick="fillDemo('usuario@eventflow.com','usuario123')"
+                style="background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);">
+          <span style="font-size:1rem;">👤</span>
+          <span style="color:#1d4ed8;font-weight:700;min-width:60px;">USUARIO</span>
+          <span style="color:var(--text-muted);">usuario@eventflow.com · usuario123</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 
 <!-- ══════════════════════════════════════════════════════════ -->
 <!--  HEADER / NAV                                            -->
@@ -615,12 +702,12 @@
     <!-- Desktop Nav -->
     <nav class="flex items-center gap-1">
       <button class="nav-link active" data-view="explore" onclick="switchView('explore')">Explorar</button>
-      <button class="nav-link" data-view="dashboard" onclick="switchView('dashboard')">Dashboard</button>
+      <button class="nav-link nav-admin-only" data-view="dashboard" onclick="switchView('dashboard')" style="display:none;">Dashboard</button>
       <button class="nav-link" data-view="concluidos" onclick="switchView('concluidos')">Concluidos</button>
-      <button class="nav-link" data-view="admin" onclick="switchView('admin')">Admin</button>
+      <button class="nav-link nav-admin-only" data-view="admin" onclick="switchView('admin')" style="display:none;">Admin</button>
     </nav>
 
-    <!-- Actions -->
+    <!-- User info + Actions -->
     <div class="flex items-center gap-2">
       <!-- Mobile Menu Button -->
       <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
@@ -630,11 +717,20 @@
           <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
       </button>
-      
-      <div class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold"
-           style="background:rgba(59,130,246,.1);color:var(--primary);border:1px solid rgba(59,130,246,.2);">
-        AD
+
+      <!-- User badge -->
+      <div class="hidden sm:flex items-center gap-2">
+        <div class="text-right" style="line-height:1.2;">
+          <p id="nav-user-name" class="font-display font-bold text-xs" style="color:var(--text-main);"></p>
+          <p id="nav-user-role" class="font-mono text-xs" style="color:var(--text-muted);"></p>
+        </div>
+        <div id="nav-user-avatar" class="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold"
+             style="background:rgba(59,130,246,.1);color:var(--primary);border:1px solid rgba(59,130,246,.2);">
+        </div>
       </div>
+      <button onclick="logout()" class="btn btn-ghost" style="font-size:.75rem;padding:.5rem .85rem;">
+        Salir
+      </button>
     </div>
   </div>
 
@@ -643,15 +739,22 @@
     <button class="mobile-nav-link active" data-view="explore" onclick="switchView('explore'); toggleMobileMenu()">
       🔍 Explorar
     </button>
-    <button class="mobile-nav-link" data-view="dashboard" onclick="switchView('dashboard'); toggleMobileMenu()">
+    <button class="mobile-nav-link mobile-nav-admin-only" data-view="dashboard" onclick="switchView('dashboard'); toggleMobileMenu()" style="display:none;">
       📊 Dashboard
     </button>
     <button class="mobile-nav-link" data-view="concluidos" onclick="switchView('concluidos'); toggleMobileMenu()">
       ✅ Concluidos
     </button>
-    <button class="mobile-nav-link" data-view="admin" onclick="switchView('admin'); toggleMobileMenu()">
+    <button class="mobile-nav-link mobile-nav-admin-only" data-view="admin" onclick="switchView('admin'); toggleMobileMenu()" style="display:none;">
       ⚙️ Admin
     </button>
+    <div style="padding:.75rem 1rem;border-top:1px solid var(--border);margin-top:.5rem;">
+      <p id="mobile-user-info" class="font-mono text-xs mb-2" style="color:var(--text-muted);"></p>
+      <button onclick="logout();toggleMobileMenu();"
+              style="color:#ef4444;font-family:'Syne',sans-serif;font-weight:600;font-size:.85rem;width:100%;text-align:left;background:none;border:none;cursor:pointer;padding:0;">
+        🚪 Cerrar Sesión
+      </button>
+    </div>
   </div>
 </header>
 
@@ -1126,34 +1229,30 @@
     <form id="reservation-form" onsubmit="submitReservationForm(event)" class="flex flex-col gap-4">
       <input type="hidden" id="reservation-id" name="id" />
       
-      <div id="reservation-tip-box" class="p-3 rounded-lg" style="display:none;background:rgba(59,130,246,.05);border:1px solid rgba(59,130,246,.2);">
+      <div class="p-3 rounded-lg" style="background:rgba(59,130,246,.05);border:1px solid rgba(59,130,246,.2);">
         <p class="text-xs" style="color:var(--text-muted);">
           💡 <strong>Tip:</strong> Necesitas el ID del usuario y del evento. Puedes obtenerlos desde la sección Admin.
         </p>
       </div>
-
-      <input type="hidden" id="reservation-usuarioId" name="usuarioId" />
-      <input type="hidden" id="reservation-eventoId" name="eventoId" />
-      <input type="hidden" id="reservation-estado" name="estado" value="confirmada" />
-
+      
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div id="reservation-usuarioId-field" style="display:none;">
+        <div>
           <label>Usuario ID</label>
-          <input type="text" id="reservation-usuarioId-visible" placeholder="ID del usuario que reserva" />
+          <input type="text" id="reservation-usuarioId" name="usuarioId" placeholder="ID del usuario que reserva" required />
           <p class="text-xs mt-1" style="color:var(--text-muted);">Obtén el ID desde Admin → Usuarios</p>
         </div>
-        <div id="reservation-eventoId-field" style="display:none;">
+        <div>
           <label>Evento ID</label>
-          <input type="text" id="reservation-eventoId-visible" placeholder="ID del evento a reservar" />
+          <input type="text" id="reservation-eventoId" name="eventoId" placeholder="ID del evento a reservar" required />
           <p class="text-xs mt-1" style="color:var(--text-muted);">Obtén el ID desde Admin → Eventos</p>
         </div>
         <div>
           <label>Cantidad de Entradas</label>
           <input type="number" id="reservation-cantidad" name="cantidad" placeholder="1" min="1" value="1" required />
         </div>
-        <div id="reservation-estado-field" style="display:none;">
+        <div>
           <label>Estado</label>
-          <select id="reservation-estado-visible">
+          <select id="reservation-estado" name="estado" required>
             <option value="pendiente">Pendiente</option>
             <option value="confirmada" selected>Confirmada</option>
             <option value="cancelada">Cancelada</option>
@@ -1195,6 +1294,11 @@
         <div class="sm:col-span-2">
           <label>Correo Electrónico</label>
           <input type="email" id="user-correo" name="correo" placeholder="ejemplo@correo.com" required />
+        </div>
+        <div class="sm:col-span-2">
+          <label>Contraseña</label>
+          <input type="password" id="user-password" name="password" placeholder="Mínimo 4 caracteres" />
+          <p class="text-xs mt-1" style="color:var(--text-muted);">Dejar vacío para mantener la contraseña actual al editar.</p>
         </div>
         <div>
           <label>Rol</label>
@@ -1304,6 +1408,6 @@
 </div>
 
 <!-- app.js -->
-<script type="module" src="app.js?v=3"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
