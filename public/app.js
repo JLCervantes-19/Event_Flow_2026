@@ -1076,73 +1076,66 @@ function openReservationModal(reservationId = null, eventoId = null, eventoTitul
   const form = document.getElementById('reservation-form');
   form.reset();
 
-  const usuarioField  = document.getElementById('reservation-usuarioId');
-  const tipBox        = document.getElementById('reservation-tip-box');
+  const isAdmin = currentUser?.rol === 'admin';
+
+  // Campos hidden (siempre presentes, los usa el form)
+  const hiddenUsuario = document.getElementById('reservation-usuarioId');
+  const hiddenEvento  = document.getElementById('reservation-eventoId');
+  const hiddenEstado  = document.getElementById('reservation-estado');
+
+  // Campos visibles (solo admin)
+  const visUsuario    = document.getElementById('reservation-usuarioId-visible');
+  const visEvento     = document.getElementById('reservation-eventoId-visible');
+  const visEstado     = document.getElementById('reservation-estado-visible');
   const userIdField   = document.getElementById('reservation-usuarioId-field');
   const eventoIdField = document.getElementById('reservation-eventoId-field');
   const estadoField   = document.getElementById('reservation-estado-field');
-  const isAdmin       = currentUser?.rol === 'admin';
+  const tipBox        = document.getElementById('reservation-tip-box');
 
-  if (!isAdmin) {
-    // Usuario normal: ocultar IDs y estado, pre-llenar usuario silenciosamente
-    usuarioField.value = currentUser.id;
-    if (userIdField)   userIdField.style.display   = 'none';
-    if (eventoIdField) eventoIdField.style.display  = 'none';
-    if (estadoField)   estadoField.style.display    = 'none';
-    if (tipBox)        tipBox.style.display         = 'none';
-    document.getElementById('reservation-estado').value = 'confirmada';
+  if (isAdmin) {
+    // Mostrar campos visibles y sincronizarlos con los hidden al cambiar
+    if (userIdField)   userIdField.style.display  = '';
+    if (eventoIdField) eventoIdField.style.display = '';
+    if (estadoField)   estadoField.style.display   = '';
+    if (tipBox)        tipBox.style.display        = '';
+    if (visUsuario) visUsuario.oninput = () => { hiddenUsuario.value = visUsuario.value; };
+    if (visEvento)  visEvento.oninput  = () => { hiddenEvento.value  = visEvento.value;  };
+    if (visEstado)  visEstado.onchange = () => { hiddenEstado.value  = visEstado.value;  };
   } else {
-    // Admin: mostrar todo
-    if (userIdField)   userIdField.style.display   = '';
-    if (eventoIdField) eventoIdField.style.display  = '';
-    if (estadoField)   estadoField.style.display    = '';
-    if (tipBox)        tipBox.style.display         = '';
-    usuarioField.readOnly    = false;
-    usuarioField.style.opacity = '1';
-    if (tipBox) tipBox.innerHTML = `<p class="text-xs" style="color:var(--text-muted);">💡 <strong>Tip:</strong> Necesitas el ID del usuario y del evento. Puedes obtenerlos desde la sección Admin.</p>`;
+    // Usuario normal: todo oculto, pre-llenar hidden silenciosamente
+    hiddenUsuario.value = currentUser.id;
+    hiddenEstado.value  = 'confirmada';
   }
 
   if (reservationId) {
-    // Modo edición
     document.getElementById('reservation-modal-subtitle').textContent = '// EDITAR RESERVA';
     document.getElementById('reservation-modal-title').textContent = 'Editar Reserva';
     document.getElementById('reservation-submit-btn').textContent = 'Guardar Cambios';
-    
-    // Cargar datos de la reserva
+
     const reservation = adminReservationsData.find(r => (r.id || r._id) === reservationId);
     if (reservation) {
+      const uid = reservation.usuarioId?._id || reservation.usuarioId?.id || reservation.usuarioId;
+      const eid = reservation.eventoId?._id  || reservation.eventoId?.id  || reservation.eventoId;
       document.getElementById('reservation-id').value = reservationId;
-      document.getElementById('reservation-usuarioId').value = reservation.usuarioId?._id || reservation.usuarioId?.id || reservation.usuarioId;
-      document.getElementById('reservation-eventoId').value = reservation.eventoId?._id || reservation.eventoId?.id || reservation.eventoId;
+      hiddenUsuario.value = uid;
+      hiddenEvento.value  = eid;
+      hiddenEstado.value  = reservation.estado;
+      if (visUsuario) visUsuario.value = uid;
+      if (visEvento)  visEvento.value  = eid;
+      if (visEstado)  visEstado.value  = reservation.estado;
       document.getElementById('reservation-cantidad').value = reservation.cantidad;
-      document.getElementById('reservation-estado').value = reservation.estado;
       document.getElementById('reservation-notas').value = reservation.notas || '';
     }
   } else {
-    // Modo creación
     document.getElementById('reservation-modal-subtitle').textContent = '// NUEVA RESERVA';
     document.getElementById('reservation-modal-title').textContent = eventoTitulo ? `Reservar: ${eventoTitulo}` : 'Crear Reserva';
     document.getElementById('reservation-submit-btn').textContent = 'Crear Reserva';
-    
-    // Si viene de un evento específico, pre-llenar el campo
+
     if (eventoId) {
-      document.getElementById('reservation-eventoId').value = eventoId;
-      document.getElementById('reservation-eventoId').readOnly = true;
-      // Agregar un mensaje informativo
-      const eventoField = document.getElementById('reservation-eventoId').parentElement;
-      if (!eventoField.querySelector('.info-message')) {
-        const info = document.createElement('p');
-        info.className = 'info-message text-xs mt-1';
-        info.style.color = 'var(--text-muted)';
-        info.textContent = `Evento: ${eventoTitulo}`;
-        eventoField.appendChild(info);
-      }
+      hiddenEvento.value = eventoId;
+      if (visEvento) { visEvento.value = eventoId; visEvento.readOnly = true; }
     } else {
-      document.getElementById('reservation-eventoId').readOnly = false;
-      // Remover mensaje si existe
-      const eventoField = document.getElementById('reservation-eventoId').parentElement;
-      const info = eventoField.querySelector('.info-message');
-      if (info) info.remove();
+      if (visEvento) visEvento.readOnly = false;
     }
   }
   
