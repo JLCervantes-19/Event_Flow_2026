@@ -19,10 +19,9 @@ const connectDB = async () => {
 
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI, {
-      // Opciones recomendadas para Atlas y evitar deprecation warnings
+      dbName: 'eventflow',
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 10000,
-      // Connection pooling for serverless
       maxPoolSize: 5,
       minPoolSize: 1,
     });

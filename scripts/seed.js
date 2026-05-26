@@ -80,8 +80,8 @@ async function seed() {
     { nombre: 'Usuario Demo', correo: 'usuario@eventflow.com', password: 'usuario123', rol: 'cliente' },
   ];
 
-  // 15 organizadores
-  for (let i = 0; i < 15; i++) {
+  // 3 organizadores
+  for (let i = 0; i < 3; i++) {
     const nombre = `${rand(NOMBRES)} ${rand(APELLIDOS)}`;
     usersData.push({
       nombre,
@@ -91,8 +91,8 @@ async function seed() {
     });
   }
 
-  // 985 clientes (total ≥ 1000)
-  for (let i = 0; i < 985; i++) {
+  // 95 clientes (total = 100)
+  for (let i = 0; i < 95; i++) {
     const nombre = `${rand(NOMBRES)} ${rand(APELLIDOS)}`;
     usersData.push({
       nombre,
@@ -112,8 +112,8 @@ async function seed() {
   console.log('🎪 Creando eventos...');
   const eventosData = [];
 
-  // 500 eventos pasados (concluidos) para reviews
-  for (let i = 0; i < 500; i++) {
+  // 50 eventos pasados (concluidos) para reviews
+  for (let i = 0; i < 50; i++) {
     const cat = CATEGORIAS[i % CATEGORIAS.length];
     const daysAgo = randNum(10, 730);
     eventosData.push({
@@ -129,8 +129,8 @@ async function seed() {
     });
   }
 
-  // 500 eventos futuros (disponibles para reservar)
-  for (let i = 0; i < 500; i++) {
+  // 50 eventos futuros (disponibles para reservar)
+  for (let i = 0; i < 50; i++) {
     const cat = CATEGORIAS[i % CATEGORIAS.length];
     const daysAhead = randNum(1, 365);
     eventosData.push({
@@ -156,7 +156,7 @@ async function seed() {
   const reservasData = [];
   const ahora = new Date();
 
-  for (let i = 0; i < 1000; i++) {
+  for (let i = 0; i < 100; i++) {
     const evento = rand(eventos);
     const cliente = rand(clientes);
     const mesAtras = randNum(0, 18);
@@ -183,7 +183,7 @@ async function seed() {
   console.log('⭐ Creando reseñas...');
   const reviewsData = [];
 
-  for (let i = 0; i < 1000; i++) {
+  for (let i = 0; i < 100; i++) {
     const evento = rand(eventosPasados);
     const cliente = rand(clientes);
     reviewsData.push({
