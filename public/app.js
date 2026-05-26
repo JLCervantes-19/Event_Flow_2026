@@ -1076,16 +1076,28 @@ function openReservationModal(reservationId = null, eventoId = null, eventoTitul
   const form = document.getElementById('reservation-form');
   form.reset();
 
-  // Para usuarios regulares, pre-llenar y bloquear el campo de usuario
-  const usuarioField = document.getElementById('reservation-usuarioId');
-  const tipBox = form.querySelector('.p-3.rounded-lg');
-  if (currentUser && currentUser.rol !== 'admin') {
+  const usuarioField  = document.getElementById('reservation-usuarioId');
+  const tipBox        = document.getElementById('reservation-tip-box');
+  const userIdField   = document.getElementById('reservation-usuarioId-field');
+  const eventoIdField = document.getElementById('reservation-eventoId-field');
+  const estadoField   = document.getElementById('reservation-estado-field');
+  const isAdmin       = currentUser?.rol === 'admin';
+
+  if (!isAdmin) {
+    // Usuario normal: ocultar IDs y estado, pre-llenar usuario silenciosamente
     usuarioField.value = currentUser.id;
-    usuarioField.readOnly = true;
-    usuarioField.style.opacity = '.6';
-    if (tipBox) tipBox.innerHTML = `<p class="text-xs" style="color:var(--text-muted);">Reservando como <strong>${currentUser.nombre}</strong></p>`;
+    if (userIdField)   userIdField.style.display   = 'none';
+    if (eventoIdField) eventoIdField.style.display  = 'none';
+    if (estadoField)   estadoField.style.display    = 'none';
+    if (tipBox)        tipBox.style.display         = 'none';
+    document.getElementById('reservation-estado').value = 'confirmada';
   } else {
-    usuarioField.readOnly = false;
+    // Admin: mostrar todo
+    if (userIdField)   userIdField.style.display   = '';
+    if (eventoIdField) eventoIdField.style.display  = '';
+    if (estadoField)   estadoField.style.display    = '';
+    if (tipBox)        tipBox.style.display         = '';
+    usuarioField.readOnly    = false;
     usuarioField.style.opacity = '1';
     if (tipBox) tipBox.innerHTML = `<p class="text-xs" style="color:var(--text-muted);">💡 <strong>Tip:</strong> Necesitas el ID del usuario y del evento. Puedes obtenerlos desde la sección Admin.</p>`;
   }
