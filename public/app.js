@@ -1618,6 +1618,8 @@ const EMOJIS_CAT = { Música:'🎵', Tecnología:'💻', Arte:'🎨', Deportes:'
 
 let concludedEvents = [];
 
+let reviewStatsMap = {};
+
 async function loadConcludedEvents() {
   const grid = document.getElementById('concluded-grid');
   const empty = document.getElementById('concluded-empty');
@@ -1628,9 +1630,16 @@ async function loadConcludedEvents() {
   empty.classList.add('hidden');
 
   try {
-    const res = await fetch(`${API}/events?past=true&limit=100`);
-    const json = await res.json();
-    concludedEvents = json.data || [];
+    const [evRes, stRes] = await Promise.all([
+      fetch(`${API}/events?past=true&limit=100`),
+      fetch(`${API}/reviews/stats`),
+    ]);
+    const [evJson, stJson] = await Promise.all([evRes.json(), stRes.json()]);
+
+    concludedEvents = evJson.data || [];
+    reviewStatsMap = {};
+    (stJson.data || []).forEach(s => { reviewStatsMap[String(s.eventoId)] = s; });
+
     renderConcluded(concludedEvents);
   } catch {
     grid.innerHTML = `<p class="col-span-3 text-center py-10" style="color:var(--text-muted);">Error al cargar eventos concluidos.</p>`;
@@ -1663,6 +1672,23 @@ function renderConcluded(events) {
     const titulo = e.titulo.replace(/'/g, "\\'");
     const emoji = EMOJIS_CAT[e.categoria] || '🎪';
     const fechaStr = fmt.date(e.fecha);
+    const stats = reviewStatsMap[String(id)];
+    const starsHtml = stats
+      ? (() => {
+          const llenas = Math.round(stats.promedio);
+          const estrellas = '★'.repeat(llenas) + '☆'.repeat(5 - llenas);
+          return `
+            <div class="flex items-center gap-2 py-2 px-1" style="border-radius:8px;background:rgba(245,158,11,.06);">
+              <span style="color:#f59e0b;font-size:1.05rem;letter-spacing:.04em;line-height:1;">${estrellas}</span>
+              <span class="font-mono font-bold text-sm" style="color:#f59e0b;">${stats.promedio.toFixed(1)}</span>
+              <span class="text-xs" style="color:var(--text-muted);">(${stats.total} reseña${stats.total !== 1 ? 's' : ''})</span>
+            </div>`;
+        })()
+      : `<div class="flex items-center gap-2 py-2 px-1">
+           <span style="color:#cbd5e1;font-size:1.05rem;letter-spacing:.04em;">☆☆☆☆☆</span>
+           <span class="text-xs" style="color:var(--text-muted);">Sin reseñas aún</span>
+         </div>`;
+
     return `
     <div class="concluded-card fade-up">
       <div class="flex items-center justify-center text-5xl" style="height:120px;background:linear-gradient(135deg,#fef3c7,#d1fae5);">
@@ -1675,6 +1701,7 @@ function renderConcluded(events) {
           <p class="text-xs mt-1" style="color:var(--text-muted);">📅 ${fechaStr} · 📍 ${e.lugar}</p>
         </div>
         ${e.descripcion ? `<p class="text-sm" style="color:var(--text-muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${e.descripcion}</p>` : ''}
+        ${starsHtml}
         <div class="flex gap-2 mt-auto pt-3" style="border-top:1px solid var(--border);">
           <button class="btn btn-ghost flex-1" style="font-size:.78rem;padding:.45rem .5rem;"
                   onclick="openViewReviewsModal('${id}', '${titulo}')">

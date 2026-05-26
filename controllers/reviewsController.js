@@ -1,6 +1,19 @@
 import Review from '../models/Review.js';
 import Event from '../models/Event.js';
 
+// GET /api/reviews/stats — Promedio y conteo de reseñas para todos los eventos
+export const getReviewStats = async (req, res) => {
+  try {
+    const stats = await Review.aggregate([
+      { $group: { _id: '$eventoId', promedio: { $avg: '$calificacion' }, total: { $count: {} } } },
+      { $project: { _id: 0, eventoId: '$_id', promedio: { $round: ['$promedio', 1] }, total: 1 } },
+    ]);
+    res.json({ ok: true, data: stats });
+  } catch (error) {
+    res.status(500).json({ ok: false, message: error.message });
+  }
+};
+
 // GET /api/reviews/:eventoId — Reseñas de un evento con promedio
 export const getReviewsByEvent = async (req, res) => {
   try {

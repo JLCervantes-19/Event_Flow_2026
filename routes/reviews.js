@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { getReviewsByEvent, createReview, deleteReview } from '../controllers/reviewsController.js';
+import { getReviewStats, getReviewsByEvent, createReview, deleteReview } from '../controllers/reviewsController.js';
 
 const router = Router();
 
+router.get('/stats', getReviewStats);
 router.get('/:eventoId', getReviewsByEvent);
 router.post('/', createReview);
 router.delete('/:id', deleteReview);
