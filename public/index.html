@@ -818,36 +818,39 @@
       <p class="font-mono text-xs mb-1" style="color:var(--accent);font-weight:600;">// PANEL DE CONTROL</p>
       <h2 class="font-display font-black text-2xl sm:text-4xl">Analytics <span class="grad-accent">Dashboard</span></h2>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2 flex-wrap">
+      <select id="month-select" onchange="loadDashboard()"
+              style="width:auto;font-family:'JetBrains Mono',monospace;font-size:.8rem;padding:.5rem .85rem;border-radius:8px;">
+        <option value="0">Todos los meses</option>
+        <option value="1">Enero</option><option value="2">Febrero</option>
+        <option value="3">Marzo</option><option value="4">Abril</option>
+        <option value="5">Mayo</option><option value="6">Junio</option>
+        <option value="7">Julio</option><option value="8">Agosto</option>
+        <option value="9">Septiembre</option><option value="10">Octubre</option>
+        <option value="11">Noviembre</option><option value="12">Diciembre</option>
+      </select>
       <select id="year-select" onchange="loadDashboard()"
               style="width:auto;font-family:'JetBrains Mono',monospace;font-size:.8rem;padding:.5rem .85rem;border-radius:8px;">
-        <option value="2025">2025</option>
-        <option value="2024">2024</option>
-        <option value="2026">2026</option>
       </select>
-      <button onclick="loadDashboard()"
-              class="btn btn-ghost text-xs py-2 px-3 flex items-center gap-1">
-        ↻ Actualizar
-      </button>
+      <button onclick="loadDashboard()" class="btn btn-ghost text-xs py-2 px-3 flex items-center gap-1">↻ Actualizar</button>
     </div>
   </div>
 
-  <!-- KPI Cards -->
-  <div id="kpi-section" class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-    <div class="skeleton h-28 col-span-1"></div>
-    <div class="skeleton h-28 col-span-1"></div>
-    <div class="skeleton h-28 col-span-1"></div>
-    <div class="skeleton h-28 col-span-1"></div>
-    <div class="skeleton h-28 col-span-1"></div>
+  <!-- KPI Cards — 2 filas de 4 -->
+  <div id="kpi-section" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+    <div class="skeleton h-28"></div><div class="skeleton h-28"></div>
+    <div class="skeleton h-28"></div><div class="skeleton h-28"></div>
+    <div class="skeleton h-28"></div><div class="skeleton h-28"></div>
+    <div class="skeleton h-28"></div><div class="skeleton h-28"></div>
   </div>
 
-  <!-- Row 1: Línea mensual + Categorías -->
+  <!-- Row 1: Histórico mensual + Categorías -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
     <div class="chart-wrap lg:col-span-2 fade-up fade-up-d1">
       <div class="flex items-center justify-between mb-5">
         <div>
           <p class="font-mono text-xs mb-1" style="color:var(--text-muted);">HISTÓRICO MENSUAL</p>
-          <h3 class="font-display font-bold text-base">Reservas & Ingresos por Mes</h3>
+          <h3 class="font-display font-bold text-base">Reservas &amp; Ingresos por Mes</h3>
         </div>
         <span class="badge" style="background:rgba(139,92,246,.1);color:var(--accent);border:1px solid rgba(139,92,246,.2);">Serie temporal</span>
       </div>
@@ -855,11 +858,10 @@
         <canvas id="chart-mensual"></canvas>
       </div>
     </div>
-
     <div class="chart-wrap fade-up fade-up-d2">
       <div class="mb-5">
         <p class="font-mono text-xs mb-1" style="color:var(--text-muted);">POR CATEGORÍA</p>
-        <h3 class="font-display font-bold text-base">Ingresos Totales</h3>
+        <h3 class="font-display font-bold text-base">Ingresos por Categoría</h3>
       </div>
       <div style="height:240px;position:relative;">
         <canvas id="chart-categorias"></canvas>
@@ -867,35 +869,54 @@
     </div>
   </div>
 
-  <!-- Row 2: Top Eventos + Ranking Organizadores -->
+  <!-- Row 2: Top Reservados + Ranking Organizadores -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-
-    <!-- Top 5 Eventos -->
     <div class="chart-wrap fade-up fade-up-d3">
       <div class="flex items-center justify-between mb-5">
         <div>
-          <p class="font-mono text-xs mb-1" style="color:var(--text-muted);">RANKING</p>
-          <h3 class="font-display font-bold text-base">Top 5 Eventos más Reservados</h3>
+          <p class="font-mono text-xs mb-1" style="color:var(--text-muted);">RANKING TAQUILLA</p>
+          <h3 class="font-display font-bold text-base">Top 5 Eventos más Taquilleros</h3>
         </div>
         <span class="badge" style="background:rgba(59,130,246,.1);color:var(--primary);border:1px solid rgba(59,130,246,.2);">🏆 Top</span>
       </div>
-      <div style="height:220px;position:relative;margin-bottom:1rem;">
+      <div style="height:200px;position:relative;margin-bottom:1rem;">
         <canvas id="chart-top-eventos"></canvas>
       </div>
-      <div id="top-eventos-table" class="overflow-x-auto">
-        <div class="skeleton h-32"></div>
-      </div>
+      <div id="top-eventos-table" class="overflow-x-auto"><div class="skeleton h-32"></div></div>
     </div>
-
-    <!-- Ranking Organizadores -->
     <div class="chart-wrap fade-up fade-up-d4">
       <div class="mb-5">
         <p class="font-mono text-xs mb-1" style="color:var(--text-muted);">LEADERBOARD</p>
         <h3 class="font-display font-bold text-base">Ranking de Organizadores</h3>
       </div>
-      <div id="ranking-table" class="overflow-x-auto">
-        <div class="skeleton h-64"></div>
+      <div id="ranking-table" class="overflow-x-auto"><div class="skeleton h-64"></div></div>
+    </div>
+  </div>
+
+  <!-- Row 3: Mejor Calificados + Distribución por Estado -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+    <div class="chart-wrap fade-up">
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <p class="font-mono text-xs mb-1" style="color:var(--text-muted);">MEJOR VALORADOS</p>
+          <h3 class="font-display font-bold text-base">Top 5 Eventos por Calificación</h3>
+        </div>
+        <span class="badge" style="background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.2);">⭐ Rating</span>
       </div>
+      <div style="height:200px;position:relative;margin-bottom:1rem;">
+        <canvas id="chart-calificados"></canvas>
+      </div>
+      <div id="top-calificados-table" class="overflow-x-auto"></div>
+    </div>
+    <div class="chart-wrap fade-up">
+      <div class="mb-5">
+        <p class="font-mono text-xs mb-1" style="color:var(--text-muted);">DISTRIBUCIÓN</p>
+        <h3 class="font-display font-bold text-base">Estado de Reservas</h3>
+      </div>
+      <div style="height:200px;position:relative;">
+        <canvas id="chart-estados"></canvas>
+      </div>
+      <div id="estados-stats" class="mt-3"></div>
     </div>
   </div>
 
@@ -1412,6 +1433,6 @@
 </div>
 
 <!-- app.js -->
-<script type="module" src="app.js?v=3"></script>
+<script type="module" src="app.js?v=4"></script>
 </body>
 </html>

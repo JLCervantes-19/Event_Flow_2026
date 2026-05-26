@@ -6,6 +6,7 @@
 
 import Reservation from '../models/Reservation.js';
 import Event from '../models/Event.js';
+import Review from '../models/Review.js';
 
 // ═══════════════════════════════════════════════════════════════
 //  1. TOP 5 EVENTOS MÁS RESERVADOS
@@ -305,43 +306,94 @@ export const getHistoricoMensual = async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 export const getKPIs = async (req, res) => {
   try {
-    // Total reservas, ingresos y entradas
+    const year  = parseInt(req.query.year)  || new Date().getFullYear();
+    const month = parseInt(req.query.month) || 0;
+
+    // Rango de fechas según filtro
+    const desde = month > 0 ? new Date(year, month - 1, 1) : new Date(year, 0, 1);
+    const hasta = month > 0 ? new Date(year, month, 1)     : new Date(year + 1, 0, 1);
+    const filtroFecha = { fechaReserva: { $gte: desde, $lt: hasta } };
+
+    // KPIs del período
     const [reservasStats] = await Reservation.aggregate([
-      { $match: { estado: 'confirmada' } },
-      {
-        $group: {
-          _id: null,
-          totalReservas: { $count: {} },
-          totalEntradas: { $sum: '$cantidad' },
-          ingresoTotal: { $sum: { $multiply: ['$cantidad', '$precioUnitario'] } },
-        },
-      },
+      { $match: { estado: 'confirmada', ...filtroFecha } },
+      { $group: { _id: null, totalReservas: { $count: {} }, totalEntradas: { $sum: '$cantidad' }, ingresoTotal: { $sum: { $multiply: ['$cantidad', '$precioUnitario'] } } } },
     ]);
 
-    // Total de eventos activos
-    const totalEventos = await Event.countDocuments({ activo: true });
+    // Tasa de cancelación del período
+    const [cancelStats] = await Reservation.aggregate([
+      { $match: filtroFecha },
+      { $group: { _id: null, total: { $count: {} }, canceladas: { $sum: { $cond: [{ $eq: ['$estado', 'cancelada'] }, 1, 0] } } } },
+    ]);
 
-    // Reservas del mes actual
-    const inicioMes = new Date();
-    inicioMes.setDate(1);
-    inicioMes.setHours(0, 0, 0, 0);
-    const reservasMes = await Reservation.countDocuments({
-      estado: 'confirmada',
-      fechaReserva: { $gte: inicioMes },
-    });
+    // Métricas globales
+    const totalEventos     = await Event.countDocuments({ activo: true });
+    const proximosEventos  = await Event.countDocuments({ activo: true, fecha: { $gte: new Date() } });
+
+    // Promedio de calificación global
+    const [ratingStats] = await Review.aggregate([
+      { $group: { _id: null, promedio: { $avg: '$calificacion' }, total: { $count: {} } } },
+    ]);
+
+    const tasaCancelacion = cancelStats?.total > 0
+      ? Math.round((cancelStats.canceladas / cancelStats.total) * 100) : 0;
 
     res.json({
       ok: true,
       data: {
-        totalReservas: reservasStats?.totalReservas ?? 0,
-        totalEntradas: reservasStats?.totalEntradas ?? 0,
-        ingresoTotal: Math.round((reservasStats?.ingresoTotal ?? 0) * 100) / 100,
+        totalReservas:        reservasStats?.totalReservas ?? 0,
+        totalEntradas:        reservasStats?.totalEntradas ?? 0,
+        ingresoTotal:         Math.round(reservasStats?.ingresoTotal ?? 0),
         totalEventos,
-        reservasMes,
+        proximosEventos,
+        tasaCancelacion,
+        promedioCalificacion: Math.round((ratingStats?.promedio ?? 0) * 10) / 10,
+        totalReseñas:         ratingStats?.total ?? 0,
       },
     });
   } catch (error) {
     console.error('[statsController] getKPIs:', error);
+    res.status(500).json({ ok: false, message: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  6. TOP 5 EVENTOS MEJOR CALIFICADOS
+//     $group por eventoId → promedio calificación → $lookup events
+// ═══════════════════════════════════════════════════════════════
+export const getTopCalificados = async (req, res) => {
+  try {
+    const pipeline = [
+      { $group: { _id: '$eventoId', promedio: { $avg: '$calificacion' }, totalReseñas: { $count: {} } } },
+      { $sort: { promedio: -1, totalReseñas: -1 } },
+      { $limit: 5 },
+      { $lookup: { from: 'events', localField: '_id', foreignField: '_id', as: 'evento' } },
+      { $unwind: '$evento' },
+      { $project: { _id: 0, eventoId: '$_id', titulo: '$evento.titulo', categoria: '$evento.categoria', lugar: '$evento.lugar', promedio: { $round: ['$promedio', 1] }, totalReseñas: 1 } },
+    ];
+    const resultado = await Review.aggregate(pipeline);
+    res.json({ ok: true, data: resultado });
+  } catch (error) {
+    console.error('[statsController] getTopCalificados:', error);
+    res.status(500).json({ ok: false, message: error.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  7. DISTRIBUCIÓN DE RESERVAS POR ESTADO
+//     $group → conteo por estado con ingresos y entradas
+// ═══════════════════════════════════════════════════════════════
+export const getReservasPorEstado = async (req, res) => {
+  try {
+    const pipeline = [
+      { $group: { _id: '$estado', total: { $count: {} }, entradas: { $sum: '$cantidad' }, ingresos: { $sum: { $multiply: ['$cantidad', '$precioUnitario'] } } } },
+      { $sort: { total: -1 } },
+      { $project: { _id: 0, estado: '$_id', total: 1, entradas: 1, ingresos: { $round: ['$ingresos', 0] } } },
+    ];
+    const resultado = await Reservation.aggregate(pipeline);
+    res.json({ ok: true, data: resultado });
+  } catch (error) {
+    console.error('[statsController] getReservasPorEstado:', error);
     res.status(500).json({ ok: false, message: error.message });
   }
 };

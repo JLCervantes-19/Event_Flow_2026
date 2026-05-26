@@ -13,6 +13,8 @@ import {
   getRankingOrganizadores,
   getHistoricoMensual,
   getKPIs,
+  getTopCalificados,
+  getReservasPorEstado,
 } from '../controllers/statsController.js';
 
 const router = Router();
@@ -53,5 +55,7 @@ router.get('/ranking-organizadores', getRankingOrganizadores);
  * @access  Private
  */
 router.get('/historico-mensual', getHistoricoMensual);
+router.get('/top-calificados', getTopCalificados);
+router.get('/reservas-por-estado', getReservasPorEstado);
 
 export default router;

@@ -279,23 +279,21 @@ function filterEvents() {
 //  DASHBOARD — carga todos los endpoints en paralelo
 // ════════════════════════════════════════════════════════════════
 async function loadDashboard() {
-  const year = document.getElementById('year-select').value;
+  const year  = document.getElementById('year-select')?.value  || new Date().getFullYear();
+  const month = document.getElementById('month-select')?.value || 0;
 
-  // Mostrar skeletons
-  document.getElementById('kpi-section').innerHTML = Array(5).fill(
-    `<div class="skeleton h-28 col-span-1"></div>`
-  ).join('');
-
-  // Destruir charts previos
-  ['mensual','categorias','top-eventos'].forEach(k => destroyChart(k));
+  document.getElementById('kpi-section').innerHTML = Array(8).fill(`<div class="skeleton h-28"></div>`).join('');
+  ['mensual','categorias','top-eventos','calificados','estados'].forEach(k => destroyChart(k));
 
   try {
-    const [kpis, topEventos, categorias, organizadores, mensual] = await Promise.all([
-      apiFetch('/dashboard/kpis'),
+    const [kpis, topEventos, categorias, organizadores, mensual, calificados, estados] = await Promise.all([
+      apiFetch(`/dashboard/kpis?year=${year}&month=${month}`),
       apiFetch('/dashboard/top-eventos'),
       apiFetch('/dashboard/ingresos-por-categoria'),
       apiFetch('/dashboard/ranking-organizadores'),
       apiFetch(`/dashboard/historico-mensual?year=${year}`),
+      apiFetch('/dashboard/top-calificados'),
+      apiFetch('/dashboard/reservas-por-estado'),
     ]);
 
     renderKPIs(kpis);
@@ -304,9 +302,10 @@ async function loadDashboard() {
     renderChartTopEventos(topEventos);
     renderTopEventosTable(topEventos);
     renderRankingTable(organizadores);
+    renderChartCalificados(calificados);
+    renderChartEstados(estados);
 
   } catch (e) {
-    // Modo demo con datos simulados
     console.info('[EventFlow] Dashboard en modo demo');
     const demo = generateDemoDashboard(year);
     renderKPIs(demo.kpis);
@@ -355,15 +354,18 @@ function generateDemoDashboard(year) {
 // ════════════════════════════════════════════════════════════════
 function renderKPIs(data) {
   const kpis = [
-    { label:'Ingresos Totales', value: fmt.currency(data.ingresoTotal), icon:'💰', accent:'amber', sub:'confirmadas' },
-    { label:'Total Reservas',  value: fmt.number(data.totalReservas),   icon:'🎫', accent:'cyan',  sub:'confirmadas' },
-    { label:'Entradas Vendidas',value:fmt.number(data.totalEntradas),   icon:'🎟️', accent:'amber', sub:'unidades' },
-    { label:'Eventos Activos', value: fmt.number(data.totalEventos),    icon:'🎪', accent:'cyan',  sub:'publicados' },
-    { label:'Reservas este mes',value:fmt.number(data.reservasMes),     icon:'📈', accent:'amber', sub:'mes actual' },
+    { label:'Ingresos del Período', value: fmt.currency(data.ingresoTotal),          icon:'💰', accent:'amber', sub:'confirmadas' },
+    { label:'Total Reservas',       value: fmt.number(data.totalReservas),            icon:'🎫', accent:'cyan',  sub:'confirmadas' },
+    { label:'Entradas Vendidas',    value: fmt.number(data.totalEntradas),            icon:'🎟️', accent:'amber', sub:'unidades' },
+    { label:'Eventos Activos',      value: fmt.number(data.totalEventos),             icon:'🎪', accent:'cyan',  sub:'publicados' },
+    { label:'Próximos Eventos',     value: fmt.number(data.proximosEventos ?? 0),     icon:'📅', accent:'amber', sub:'por venir' },
+    { label:'Rating Promedio',      value: `${data.promedioCalificacion ?? 0}★`,      icon:'⭐', accent:'cyan',  sub:`${fmt.number(data.totalReseñas ?? 0)} reseñas` },
+    { label:'Tasa Cancelación',     value: `${data.tasaCancelacion ?? 0}%`,           icon:'❌', accent:'amber', sub:'del período' },
+    { label:'Total Reseñas',        value: fmt.number(data.totalReseñas ?? 0),        icon:'💬', accent:'cyan',  sub:'publicadas' },
   ];
 
   document.getElementById('kpi-section').innerHTML = kpis.map((k, i) => `
-    <div class="kpi-card ${k.accent === 'cyan' ? 'cyan' : ''} fade-up" style="animation-delay:${i*.06}s;opacity:0;">
+    <div class="kpi-card ${k.accent === 'cyan' ? 'cyan' : ''} fade-up" style="animation-delay:${i*.05}s;opacity:0;">
       <div class="flex items-start justify-between mb-3">
         <span class="text-xl">${k.icon}</span>
         <span class="badge" style="background:rgba(${k.accent==='amber'?'251,191,36':'34,211,238'},.1);color:var(--${k.accent});">
@@ -627,6 +629,131 @@ function renderRankingTable(data) {
         }).join('')}
       </tbody>
     </table>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER: CHART — Top 5 Calificados (barra horizontal)
+// ════════════════════════════════════════════════════════════════
+function renderChartCalificados(data) {
+  destroyChart('calificados');
+  const ctx = document.getElementById('chart-calificados');
+  if (!ctx) return;
+
+  if (!data.length) {
+    ctx.parentElement.innerHTML = `<p class="text-sm text-center py-8" style="color:var(--text-muted);">Sin reseñas disponibles</p>`;
+    return;
+  }
+
+  const labels = data.map(d => d.titulo.length > 22 ? d.titulo.slice(0, 20) + '…' : d.titulo);
+  const values = data.map(d => d.promedio);
+  const colors = data.map(d => CAT_COLORS[d.categoria] ?? '#fbbf24');
+
+  charts['calificados'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Calificación promedio',
+        data: values,
+        backgroundColor: colors.map(c => c + '33'),
+        borderColor: colors,
+        borderWidth: 2,
+        borderRadius: 6,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { min: 0, max: 5, ticks: { color:'#475569', font:{family:'JetBrains Mono',size:10}, callback: v => `${v}★` }, grid:{color:'rgba(255,255,255,.04)'} },
+        y: { ticks: { color:'#94a3b8', font:{family:'DM Sans',size:11} }, grid:{display:false} },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor:'#1e293b', borderColor:'rgba(255,255,255,.1)', borderWidth:1,
+          titleFont:{family:'Syne',weight:'bold'}, bodyFont:{family:'JetBrains Mono',size:11},
+          callbacks: { label: ctx => ` ${ctx.raw}★  (${data[ctx.dataIndex].totalReseñas} reseñas)` }
+        }
+      }
+    }
+  });
+
+  document.getElementById('top-calificados-table').innerHTML = `
+    <table class="data-table">
+      <thead><tr><th>#</th><th>Evento</th><th>Categoría</th><th style="text-align:center;">Rating</th><th style="text-align:center;">Reseñas</th></tr></thead>
+      <tbody>
+        ${data.map((e, i) => `
+          <tr>
+            <td><span class="font-mono font-bold" style="color:var(--amber);">0${i+1}</span></td>
+            <td class="font-display font-semibold text-xs">${e.titulo}</td>
+            <td><span class="badge cat-${e.categoria}">${e.categoria}</span></td>
+            <td class="text-center font-mono text-xs" style="color:#f59e0b;">★ ${e.promedio}</td>
+            <td class="font-mono text-xs text-center" style="color:var(--cyan);">${e.totalReseñas}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER: CHART — Distribución por Estado de Reservas (donut)
+// ════════════════════════════════════════════════════════════════
+function renderChartEstados(data) {
+  destroyChart('estados');
+  const ctx = document.getElementById('chart-estados');
+  if (!ctx || !data.length) return;
+
+  const COLORS = { confirmada:'#10b981', pendiente:'#f97316', cancelada:'#ef4444' };
+
+  charts['estados'] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: data.map(d => d.estado.charAt(0).toUpperCase() + d.estado.slice(1)),
+      datasets: [{
+        data: data.map(d => d.total),
+        backgroundColor: data.map(d => (COLORS[d.estado] ?? '#64748b') + '33'),
+        borderColor: data.map(d => COLORS[d.estado] ?? '#64748b'),
+        borderWidth: 3,
+        hoverOffset: 8,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: { position:'bottom', labels:{color:'#64748b',font:{family:'JetBrains Mono',size:10},boxWidth:10,padding:10} },
+        tooltip: {
+          backgroundColor:'#1e293b', borderColor:'rgba(255,255,255,.1)', borderWidth:1,
+          titleFont:{family:'Syne',weight:'bold'}, bodyFont:{family:'JetBrains Mono',size:11},
+          callbacks: {
+            label: ctx => {
+              const total = data.reduce((a, b) => a + b.total, 0);
+              return ` ${ctx.raw} reservas (${total > 0 ? ((ctx.raw/total)*100).toFixed(0) : 0}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  const total = data.reduce((a, b) => a + b.total, 0);
+  document.getElementById('estados-stats').innerHTML = data.map(d => {
+    const c = COLORS[d.estado] ?? '#64748b';
+    const pct = total > 0 ? ((d.total / total) * 100).toFixed(0) : 0;
+    return `
+      <div class="flex items-center justify-between py-2" style="border-bottom:1px solid var(--border);">
+        <div class="flex items-center gap-2">
+          <div style="width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0;"></div>
+          <span class="text-xs font-display font-semibold">${d.estado.charAt(0).toUpperCase() + d.estado.slice(1)}</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="font-mono text-xs" style="color:var(--text-muted);">${d.total} reservas · ${fmt.currency(d.ingresos)}</span>
+          <span class="font-mono text-xs font-bold" style="color:${c};">${pct}%</span>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -1702,14 +1829,14 @@ window.deleteReview           = deleteReview;
 //  INIT — Carga inicial
 // ════════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
   const ys = document.getElementById('year-select');
-  const now = new Date().getFullYear();
   if (ys) {
-    ys.innerHTML = `
-      <option value="${now}">${now}</option>
-      <option value="${now-1}">${now-1}</option>
-      <option value="${now+1}">${now+1}</option>`;
+    const y = now.getFullYear();
+    ys.innerHTML = [y+1, y, y-1, y-2].map(yr => `<option value="${yr}"${yr===y?' selected':''}>${yr}</option>`).join('');
   }
+  const ms = document.getElementById('month-select');
+  if (ms) ms.value = '0';
 
   // Verificar sesión existente en localStorage
   try {
